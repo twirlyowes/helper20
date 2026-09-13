@@ -5,7 +5,9 @@ const express = require('express');
 const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
 const { token, port } = require('./config');
 
-if (!token) throw new Error('DISCORD_TOKEN is missing.');
+if (!token) {
+  throw new Error('DISCORD_TOKEN is missing in configuration/environment.');
+}
 
 const client = new Client({
   intents: [
@@ -21,16 +23,17 @@ const client = new Client({
 
 client.commands = new Collection();
 
-// Safe Command Loader with Error Catching
-function loadCommands(dir) {
-  for (const file of fs.readdirSync(dir)) {
-    const fullPath = path.join(dir, file);
+// Safe recursive command loader
+function loadCommands(dirPath) {
+  if (!fs.existsSync(dirPath)) return;
+  for (const file of fs.readdirSync(dirPath)) {
+    const fullPath = path.join(dirPath, file);
     if (fs.statSync(fullPath).isDirectory()) {
       loadCommands(fullPath);
     } else if (file.endsWith('.js') && !file.startsWith('_')) {
       try {
         const cmd = require(fullPath);
-        if (cmd.data?.name) {
+        if (cmd?.data?.name) {
           client.commands.set(cmd.data.name, cmd);
         }
       } catch (err) {
@@ -40,10 +43,9 @@ function loadCommands(dir) {
   }
 }
 
-// Load commands directory
+// Load commands and command groups safely
 loadCommands(path.join(__dirname, 'commands'));
 
-// Load command groups
 try {
   const groups = require('./commands/groups');
   for (const c of Object.values(groups)) {
@@ -53,7 +55,7 @@ try {
   console.error('❌ Failed to load command groups:', err.message);
 }
 
-// Interaction Handler
+// Handle Slash Command Interactions
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
@@ -62,7 +64,7 @@ client.on('interactionCreate', async interaction => {
   try {
     await command.execute(interaction);
   } catch (error) {
-    console.error(error);
+    console.error(`Error executing ${interaction.commandName}:`, error);
     const msg = { content: '❌ Something went wrong while executing that command.', ephemeral: true };
     if (interaction.replied || interaction.deferred) {
       await interaction.followUp(msg).catch(() => {});
@@ -72,7 +74,7 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Load Event Handlers
+// Load Event Listeners
 require('./events/ready')(client);
 require('./events/messageCreate')(client);
 require('./events/prefixCommands')(client);
@@ -80,7 +82,7 @@ require('./events/member')(client);
 require('./events/logs')(client);
 require('./events/antiNuke')(client);
 
-// Express Health Check Server
+// Express Web Server for Render Port Binding
 const app = express();
 app.get('/', (_, res) => res.send('Xieron HelpDesk is online.'));
 app.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() }));
@@ -91,7 +93,8 @@ process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-// Connect to Discord
+// Single Discord Gateway Connection
+console.log('Connecting to Discord Gateway...');
 client.login(token)
-  .then(() => console.log('WebSocket Gateway connection established.'))
+  .then(() => console.log('✅ WebSocket Gateway connection established.'))
   .catch(err => console.error('❌ Discord Login Error:', err));
