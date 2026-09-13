@@ -1,1 +1,67 @@
-const {SlashCommandBuilder}=require('discord.js');const {mod,ok,fail}=require('./factory');const b=new SlashCommandBuilder().setName('channel').setDescription('Channel controls');for(const n of ['lock','unlock','lockall','unlockall','hide','unhide','hideall','unhideall','slowmode'])b.addSubcommand(s=>s.setName(n).setDescription(n).addIntegerOption(o=>o.setName('seconds').setDescription('Slowmode seconds').setMinValue(0).setMaxValue(21600)));module.exports={data:b,execute:async i=>{if(!mod(i))return fail(i,'Moderator permissions required.');const n=i.options.getSubcommand();if(n==='slowmode'){await i.channel.setRateLimitPerUser(i.options.getInteger('seconds')||0);return ok(i,'Slowmode','Updated.')}const all=n.endsWith('all'),hide=n.startsWith('hide')||n.startsWith('unhide'),on=n.startsWith('un')||n==='unlock';const chans=all?i.guild.channels.cache.filter(c=>c.isTextBased()):new Map([[i.channel.id,i.channel]]);let c=0;for(const ch of chans.values()){try{if(hide)await ch.permissionOverwrites.edit(i.guild.roles.everyone,{ViewChannel:on?null:false});else await ch.permissionOverwrites.edit(i.guild.roles.everyone,{SendMessages:on?null:false});c++}catch{}}return ok(i,'Channels updated',`Updated ${c} channel(s).`)}};
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
+const { respondSuccess, respondError } = require('../utils/respond');
+const { checkPermissions } = require('../utils/permissions');
+
+module.exports = {
+  data: new SlashCommandBuilder()
+    .setName('channel')
+    .setDescription('Manage channels in the server')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels)
+    .addSubcommand(sub =>
+      sub
+        .setName('create')
+        .setDescription('Create a new channel')
+        .addStringOption(opt =>
+          opt.setName('name').setDescription('Channel name').setRequired(true)
+        )
+        .addIntegerOption(opt =>
+          opt
+            .setName('type')
+            .setDescription('Channel type')
+            .setRequired(false)
+            .addChoices(
+              { name: 'Text', value: ChannelType.GuildText },
+              { name: 'Voice', value: ChannelType.GuildVoice },
+              { name: 'Category', value: ChannelType.GuildCategory }
+            )
+        )
+    )
+    .addSubcommand(sub =>
+      sub
+        .setName('delete')
+        .setDescription('Delete a channel')
+        .addChannelOption(opt =>
+          opt.setName('target').setDescription('Channel to delete').setRequired(true)
+        )
+    ),
+
+  async execute(interaction) {
+    if (!checkPermissions(interaction, PermissionFlagsBits.ManageChannels)) {
+      return respondError(interaction, 'You lack permissions to manage channels.');
+    }
+
+    const sub = interaction.options.getSubcommand();
+
+    if (sub === 'create') {
+      const name = interaction.options.getString('name');
+      const type = interaction.options.getInteger('type') || ChannelType.GuildText;
+
+      try {
+        const created = await interaction.guild.channels.create({ name, type });
+        return respondSuccess(interaction, `Created channel ${created}.`);
+      } catch (err) {
+        return respondError(interaction, `Failed to create channel: ${err.message}`);
+      }
+    }
+
+    if (sub === 'delete') {
+      const target = interaction.options.getChannel('target');
+      try {
+        await target.delete();
+        return respondSuccess(interaction, `Deleted channel **#${target.name}**.`);
+      } catch (err) {
+        return respondError(interaction, `Failed to delete channel: ${err.message}`);
+      }
+    }
+  }
+};
