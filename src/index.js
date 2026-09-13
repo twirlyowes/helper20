@@ -4,3 +4,10 @@ function load(p){for(const f of fs.readdirSync(p)){const full=path.join(p,f);if(
 client.on('interactionCreate',async i=>{if(!i.isChatInputCommand())return;const c=client.commands.get(i.commandName);if(!c)return;try{await c.execute(i)}catch(e){console.error(e);const msg={content:'❌ Something went wrong while executing that command.',ephemeral:true};if(i.replied||i.deferred)await i.followUp(msg).catch(()=>{});else await i.reply(msg).catch(()=>{});}});
 require('./events/ready')(client);require('./events/messageCreate')(client);require('./events/prefixCommands')(client);require('./events/member')(client);require('./events/logs')(client);require('./events/antiNuke')(client);
 const app=express();app.get('/',(_,r)=>r.send('Xieron HelpDesk is online.'));app.get('/health',(_,r)=>r.json({ok:true,uptime:process.uptime()}));app.listen(port,'0.0.0.0',()=>console.log(`Health server on ${port}`));client.login(token);
+client.login(token)
+  .then(() => console.log('WebSocket Gateway connection established.'))
+  .catch(err => console.error('Discord Login Error:', err));
+
+process.on('unhandledRejection', error => {
+  console.error('Unhandled promise rejection:', error);
+});
