@@ -2,7 +2,6 @@ require('dotenv').config();
 
 const fs = require('fs');
 const path = require('path');
-const https = require('https');
 const express = require('express');
 
 const {
@@ -151,15 +150,7 @@ client.on('shardError', err => {
 });
 
 // ==========================================================
-// Discord Debug Logging
-// ==========================================================
-
-client.on('debug', info => {
-  console.log(`[DISCORD DEBUG] ${info}`);
-});
-
-// ==========================================================
-// Discord Ready Verification
+// Discord Ready
 // ==========================================================
 
 client.once('ready', () => {
@@ -171,90 +162,16 @@ client.once('ready', () => {
 });
 
 // ==========================================================
-// Discord REST Connectivity Test
+// Discord Login — Same Style As Pixel Villa
 // ==========================================================
 
-function testDiscordREST() {
-  console.log('🌐 Testing Discord REST API...');
+console.log('About to login...');
+console.log('Token exists:', !!token);
 
-  const request = https.get(
-    'https://discord.com/api/v10/gateway',
-    response => {
-      console.log(
-        `🌐 Discord REST test: HTTP ${response.statusCode}`
-      );
-
-      response.on('data', () => {});
-
-      response.on('end', () => {
-        console.log('🌐 Discord REST test completed.');
-      });
-    }
-  );
-
-  request.setTimeout(10000, () => {
-    console.error('❌ Discord REST test timed out.');
-    request.destroy();
+client.login(token)
+  .then(() => {
+    console.log('✅ Login successful');
+  })
+  .catch(err => {
+    console.error('❌ Login failed:', err);
   });
-
-  request.on('error', err => {
-    console.error(
-      '❌ Discord REST test failed:',
-      err.message
-    );
-  });
-}
-
-// ==========================================================
-// Gateway Login With Timeout Diagnostics
-// ==========================================================
-
-async function connectToDiscord() {
-  console.log(`Token present: YES (Length: ${token.length})`);
-  console.log('Connecting to Discord Gateway...');
-
-  // Test basic HTTPS connectivity to Discord first.
-  testDiscordREST();
-
-  let loginFinished = false;
-
-  // Gateway timeout diagnostic.
-  const gatewayTimeout = setTimeout(() => {
-    if (!loginFinished && !client.isReady()) {
-      console.error('========================================');
-      console.error('❌ GATEWAY CONNECTION TIMEOUT');
-      console.error(
-        'Discord login has not completed after 30 seconds.'
-      );
-      console.error(
-        'The process can reach Render, but Discord Gateway connection may be blocked or stalled.'
-      );
-      console.error('========================================');
-    }
-  }, 30000);
-
-  try {
-    await client.login(token);
-
-    loginFinished = true;
-    clearTimeout(gatewayTimeout);
-
-    console.log('========================================');
-    console.log('✅ client.login() resolved successfully');
-    console.log('========================================');
-  } catch (err) {
-    loginFinished = true;
-    clearTimeout(gatewayTimeout);
-
-    console.error('========================================');
-    console.error('❌ Discord Login Error');
-    console.error(err);
-    console.error('========================================');
-  }
-}
-
-// ==========================================================
-// Start Discord Connection
-// ==========================================================
-
-connectToDiscord();
