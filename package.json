@@ -1,1 +1,19 @@
-{"name":"xieron-helpdesk-bot","version":"2.0.0","private":true,"main":"src/index.js","scripts":{"start":"node src/index.js","register":"node deploy/register-commands.js"},"dependencies":{"discord.js":"^14.24.2","dotenv":"^16.6.1","express":"^5.1.0","firebase-admin":"^13.5.0"}}
+{
+  "name": "xieron-helpdesk-bot",
+  "version": "2.0.0",
+  "private": true,
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "register": "node deploy/register-commands.js"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "dependencies": {
+    "discord.js": "^14.24.2",
+    "dotenv": "^16.6.1",
+    "express": "^5.1.0",
+    "firebase-admin": "^13.5.0"
+  }
+}
