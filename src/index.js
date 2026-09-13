@@ -18,12 +18,21 @@ const client = new Client({
     GatewayIntentBits.GuildModeration,
     GatewayIntentBits.GuildVoiceStates
   ],
-  partials: [Partials.Channel, Partials.Message, Partials.User]
+  partials: [Partials.Channel, Partials.Message, Partials.User],
+  rest: {
+    timeout: 15000 // Increase REST API timeout window
+  }
 });
 
 client.commands = new Collection();
 
-// Safe recursive command loader
+// Express Web Server for Render Port Binding
+const app = express();
+app.get('/', (_, res) => res.send('Xieron HelpDesk is online.'));
+app.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() }));
+app.listen(port, '0.0.0.0', () => console.log(`Health server running on port ${port}`));
+
+// Safe Recursive Command Loader
 function loadCommands(dirPath) {
   if (!fs.existsSync(dirPath)) return;
   for (const file of fs.readdirSync(dirPath)) {
@@ -43,7 +52,6 @@ function loadCommands(dirPath) {
   }
 }
 
-// Load commands and command groups safely
 loadCommands(path.join(__dirname, 'commands'));
 
 try {
@@ -52,10 +60,10 @@ try {
     if (c?.data?.name) client.commands.set(c.data.name, c);
   }
 } catch (err) {
-  console.error('❌ Failed to load command groups:', err.message);
+  // Ignore if no group commands file exists
 }
 
-// Handle Slash Command Interactions
+// Interaction Handler
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
@@ -74,47 +82,40 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Load Event Listeners
-require('./events/ready')(client);
-require('./events/messageCreate')(client);
-require('./events/prefixCommands')(client);
-require('./events/member')(client);
-require('./events/logs')(client);
-require('./events/antiNuke')(client);
+// Load Event Listeners Safely
+const events = ['ready', 'messageCreate', 'prefixCommands', 'member', 'logs', 'antiNuke'];
+for (const eventFile of events) {
+  try {
+    require(`./events/${eventFile}`)(client);
+  } catch (err) {
+    console.warn(`⚠️ Warning: Event listener '${eventFile}' not loaded:`, err.message);
+  }
+}
 
-// Express Web Server for Render Port Binding
-const app = express();
-app.get('/', (_, res) => res.send('Xieron HelpDesk is online.'));
-app.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() }));
-app.listen(port, '0.0.0.0', () => console.log(`Health server running on port ${port}`));
-
-// Global Exception Handler
+// Global Diagnostics & Exception Handlers
 process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-// Single Discord Gateway Connection
-console.log('Connecting to Discord Gateway...');
-client.login(token)
-  .then(() => console.log('✅ WebSocket Gateway connection established.'))
-  .catch(err => console.error('❌ Discord Login Error:', err));
-// Global Exception Handler
-process.on('unhandledRejection', error => {
-  console.error('Unhandled promise rejection:', error);
+client.on('debug', info => {
+  // Filters out repetitive heartbeat logs to keep output clean
+  if (!info.includes('Heartbeat')) console.log(`[DISCORD DEBUG] ${info}`);
 });
 
-// Debug Environment Variable Token Presence
+client.on('error', err => console.error('[DISCORD CLIENT ERROR]', err));
+
+// Gateway Connection Attempt
 console.log(`Token present: ${!!token} (Length: ${token ? token.length : 0})`);
 console.log('Connecting to Discord Gateway...');
 
 const loginTimeout = setTimeout(() => {
-  console.error('❌ Discord connection timed out after 10 seconds. Check if DISCORD_TOKEN is valid.');
-}, 10000);
+  console.error('❌ Discord connection timed out after 20 seconds. Re-verify your bot token in Discord Portal.');
+}, 20000);
 
 client.login(token)
   .then(() => {
     clearTimeout(loginTimeout);
-    console.log('✅ WebSocket Gateway connection established.');
+    console.log(`✅ Gateway connected! Logged in as ${client.user.tag}`);
   })
   .catch(err => {
     clearTimeout(loginTimeout);
