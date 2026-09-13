@@ -28,17 +28,14 @@ if (!token) {
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildModeration,
-    GatewayIntentBits.GuildVoiceStates
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildMembers
   ],
 
   partials: [
-    Partials.Channel,
-    Partials.Message,
-    Partials.User
+    Partials.Channel
   ]
 });
 
@@ -162,7 +159,7 @@ client.once('ready', () => {
 });
 
 // ==========================================================
-// Discord Login — Same Style As Pixel Villa
+// Discord Login — Pixel Villa Style
 // ==========================================================
 
 console.log('About to login...');
