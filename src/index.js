@@ -9,7 +9,13 @@ if (dns.setDefaultResultOrder) {
 const fs = require('fs');
 const path = require('path');
 const express = require('express');
-const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js');
+const {
+  Client,
+  GatewayIntentBits,
+  Partials,
+  Collection
+} = require('discord.js');
+
 const { token, port } = require('./config');
 
 if (!token) {
@@ -25,32 +31,64 @@ const client = new Client({
     GatewayIntentBits.GuildModeration,
     GatewayIntentBits.GuildVoiceStates
   ],
-  partials: [Partials.Channel, Partials.Message, Partials.User]
+  partials: [
+    Partials.Channel,
+    Partials.Message,
+    Partials.User
+  ]
 });
 
 client.commands = new Collection();
 
-// Express Health Server for Render Port Binding
-const app = express();
-app.get('/', (_, res) => res.send('Xieron HelpDesk is online.'));
-app.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() }));
-app.listen(port, '0.0.0.0', () => console.log(`Health server running on port ${port}`));
+// ==========================================================
+// Express Health Server for Render
+// ==========================================================
 
+const app = express();
+
+app.get('/', (_, res) => {
+  res.send('Xieron HelpDesk is online.');
+});
+
+app.get('/health', (_, res) => {
+  res.json({
+    ok: true,
+    uptime: process.uptime()
+  });
+});
+
+app.listen(port, '0.0.0.0', () => {
+  console.log(`Health server running on port ${port}`);
+});
+
+// ==========================================================
 // Safe Command Loading
+// ==========================================================
+
 function loadCommands(dirPath) {
   if (!fs.existsSync(dirPath)) return;
+
   for (const file of fs.readdirSync(dirPath)) {
     const fullPath = path.join(dirPath, file);
+
     if (fs.statSync(fullPath).isDirectory()) {
       loadCommands(fullPath);
-    } else if (file.endsWith('.js') && !file.startsWith('_')) {
+    } else if (
+      file.endsWith('.js') &&
+      !file.startsWith('_')
+    ) {
       try {
         const cmd = require(fullPath);
+
         if (cmd?.data?.name) {
           client.commands.set(cmd.data.name, cmd);
+          console.log(`✅ Loaded command: ${cmd.data.name}`);
         }
       } catch (err) {
-        console.error(`❌ Failed to load command at ${fullPath}:`, err.message);
+        console.error(
+          `❌ Failed to load command at ${fullPath}:`,
+          err
+        );
       }
     }
   }
@@ -58,26 +96,77 @@ function loadCommands(dirPath) {
 
 loadCommands(path.join(__dirname, 'commands'));
 
+// ==========================================================
 // Event Handler Registration
-const events = ['ready', 'messageCreate', 'prefixCommands', 'member', 'logs', 'antiNuke'];
+// ==========================================================
+
+const events = [
+  'ready',
+  'messageCreate',
+  'prefixCommands',
+  'member',
+  'logs',
+  'antiNuke'
+];
+
 for (const eventFile of events) {
   try {
     require(`./events/${eventFile}`)(client);
+    console.log(`✅ Loaded event: ${eventFile}`);
   } catch (err) {
-    console.warn(`⚠️ Warning: Event '${eventFile}' skipped:`, err.message);
+    console.warn(
+      `⚠️ Warning: Event '${eventFile}' skipped:`,
+      err.message
+    );
   }
 }
 
-// Global Diagnostics & Connection Verification
-process.on('unhandledRejection', error => console.error('Unhandled Rejection:', error));
-client.on('error', err => console.error('[DISCORD CLIENT ERROR]', err));
+// ==========================================================
+// Global Diagnostics
+// ==========================================================
+
+process.on('unhandledRejection', error => {
+  console.error('❌ Unhandled Rejection:', error);
+});
+
+process.on('uncaughtException', error => {
+  console.error('❌ Uncaught Exception:', error);
+});
+
+client.on('error', err => {
+  console.error('❌ Discord Client Error:', err);
+});
+
+client.on('shardError', err => {
+  console.error('❌ Discord Shard Error:', err);
+});
+
+client.on('debug', info => {
+  console.log('[DISCORD DEBUG]', info);
+});
+
+// ==========================================================
+// Discord Ready Verification
+// ==========================================================
+
+client.once('ready', () => {
+  console.log('================================');
+  console.log(`✅ BOT ONLINE: ${client.user.tag}`);
+  console.log(`🆔 Bot ID: ${client.user.id}`);
+  console.log(`🏠 Servers: ${client.guilds.cache.size}`);
+  console.log('================================');
+});
+
+// ==========================================================
+// Discord Gateway Connection
+// ==========================================================
 
 console.log(`Token present: YES (Length: ${token.length})`);
 console.log('Connecting to Discord Gateway...');
 
 client.login(token)
   .then(() => {
-    console.log(`✅ Gateway connected! Logged in as ${client.user.tag}`);
+    console.log('✅ client.login() resolved');
   })
   .catch(err => {
     console.error('❌ Discord Login Error:', err);
