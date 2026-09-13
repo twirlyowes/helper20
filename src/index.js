@@ -98,3 +98,25 @@ console.log('Connecting to Discord Gateway...');
 client.login(token)
   .then(() => console.log('✅ WebSocket Gateway connection established.'))
   .catch(err => console.error('❌ Discord Login Error:', err));
+// Global Exception Handler
+process.on('unhandledRejection', error => {
+  console.error('Unhandled promise rejection:', error);
+});
+
+// Debug Environment Variable Token Presence
+console.log(`Token present: ${!!token} (Length: ${token ? token.length : 0})`);
+console.log('Connecting to Discord Gateway...');
+
+const loginTimeout = setTimeout(() => {
+  console.error('❌ Discord connection timed out after 10 seconds. Check if DISCORD_TOKEN is valid.');
+}, 10000);
+
+client.login(token)
+  .then(() => {
+    clearTimeout(loginTimeout);
+    console.log('✅ WebSocket Gateway connection established.');
+  })
+  .catch(err => {
+    clearTimeout(loginTimeout);
+    console.error('❌ Discord Login Error:', err);
+  });
