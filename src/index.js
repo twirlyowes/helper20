@@ -6,9 +6,10 @@ const { Client, GatewayIntentBits, Partials, Collection } = require('discord.js'
 const { token, port } = require('./config');
 
 if (!token) {
-  throw new Error('DISCORD_TOKEN is missing in configuration/environment.');
+  throw new Error('DISCORD_TOKEN environment variable is missing.');
 }
 
+// Initialize Client with custom WebSocket options to prevent hosting connection hangs
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -19,14 +20,19 @@ const client = new Client({
     GatewayIntentBits.GuildVoiceStates
   ],
   partials: [Partials.Channel, Partials.Message, Partials.User],
+  ws: {
+    large_threshold: 50,
+    version: 10
+  },
   rest: {
-    timeout: 15000 // Increase REST API timeout window
+    timeout: 20000,
+    retries: 3
   }
 });
 
 client.commands = new Collection();
 
-// Express Web Server for Render Port Binding
+// Express Health Server for Render Port Binding
 const app = express();
 app.get('/', (_, res) => res.send('Xieron HelpDesk is online.'));
 app.get('/health', (_, res) => res.json({ ok: true, uptime: process.uptime() }));
@@ -60,10 +66,10 @@ try {
     if (c?.data?.name) client.commands.set(c.data.name, c);
   }
 } catch (err) {
-  // Ignore if no group commands file exists
+  // Ignore missing group commands file
 }
 
-// Interaction Handler
+// Interaction Event Handler
 client.on('interactionCreate', async interaction => {
   if (!interaction.isChatInputCommand()) return;
   const command = client.commands.get(interaction.commandName);
@@ -82,35 +88,30 @@ client.on('interactionCreate', async interaction => {
   }
 });
 
-// Load Event Listeners Safely
+// Load Event Handlers
 const events = ['ready', 'messageCreate', 'prefixCommands', 'member', 'logs', 'antiNuke'];
 for (const eventFile of events) {
   try {
     require(`./events/${eventFile}`)(client);
   } catch (err) {
-    console.warn(`⚠️ Warning: Event listener '${eventFile}' not loaded:`, err.message);
+    console.warn(`⚠️ Warning: Event '${eventFile}' not loaded:`, err.message);
   }
 }
 
-// Global Diagnostics & Exception Handlers
+// Global Diagnostics
 process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-client.on('debug', info => {
-  // Filters out repetitive heartbeat logs to keep output clean
-  if (!info.includes('Heartbeat')) console.log(`[DISCORD DEBUG] ${info}`);
-});
+client.on('error', err => console.error('[DISCORD ERROR]', err));
 
-client.on('error', err => console.error('[DISCORD CLIENT ERROR]', err));
-
-// Gateway Connection Attempt
-console.log(`Token present: ${!!token} (Length: ${token ? token.length : 0})`);
+// Secure Login Attempt
+console.log(`Token present: YES (Length: ${token.length})`);
 console.log('Connecting to Discord Gateway...');
 
 const loginTimeout = setTimeout(() => {
-  console.error('❌ Discord connection timed out after 20 seconds. Re-verify your bot token in Discord Portal.');
-}, 20000);
+  console.error('❌ Login timed out. If token was reset, update DISCORD_TOKEN on Render.');
+}, 25000);
 
 client.login(token)
   .then(() => {
