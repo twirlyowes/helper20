@@ -1,1 +1,0 @@
-module.exports={primary:0x38BDF8,success:0x22C55E,danger:0xEF4444,warning:0x38BDF8,dark:0x0B1220};
