@@ -1,0 +1,22 @@
+{
+  "name": "premium-guild-bot",
+  "version": "1.0.0",
+  "description": "Production-ready modular Discord.js v14 bot with Firebase persistence.",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js",
+    "deploy": "node scripts/deploy-commands.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "firebase-admin": "^12.6.0",
+    "express": "^4.21.0"
+  },
+  "engines": {
+    "node": "20.x"
+  },
+  "license": "MIT"
+}
